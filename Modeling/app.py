@@ -1,97 +1,215 @@
-import streamlit as st
-import pandas as pd
-import joblib
-import numpy as np
+# =========================================
+# RideWise Bike Sharing Prediction - PRODUCTION VERSION
+# =========================================
+
 import os
+import pandas as pd
+import pickle
+import numpy as np
 import matplotlib.pyplot as plt
+import streamlit as st
 
-MODEL_DIR = r'C:\Users\harip\Desktop\RideWise-Predicting-Bike-sharing-Demand\Modeling\saved_models'
-DATASET_PATH = r'C:\Users\harip\Desktop\RideWise-Predicting-Bike-sharing-Demand\Data\EDA_DT_Models.csv'
-BEST_MODEL_PATH = os.path.join(MODEL_DIR, 'best_model.pkl')
-SCALER_PATH = os.path.join(MODEL_DIR, 'DR_scaler.pkl')
+# ---------------------------------------------------------
+#                 PATH CONFIGURATION 
+# ---------------------------------------------------------
+BASE_DIR = r"C:\Users\harip\Desktop\RideWise-Predicting-Bike-sharing-Demand"
+DATA_DIR = os.path.join(BASE_DIR, "Data")
+MODEL_DIR = os.path.join(BASE_DIR, "Modeling", "saved_models", "bestModel")
 
-# Load best model and scaler
-model = joblib.load(BEST_MODEL_PATH)
-scaler = joblib.load(SCALER_PATH)
+DATASET_PATH = os.path.join(DATA_DIR, "preprocessed_day.csv")
+NUM_COLS = ["temp", "atemp", "hum", "windspeed"]  # Scaled features
 
-st.title("Bike Sharing Demand Prediction App")
-df = pd.read_csv(DATASET_PATH)
-st.write("Sample of preprocessed data:")
-st.dataframe(df.head())
 
-st.subheader("Enter feature values below :")
-st.markdown("Use dropdowns or type manually in the boxes.")
-columns = st.columns(4)
+# ---------------------------------------------------------
+#                      UTIL FUNCTIONS
+# ---------------------------------------------------------
+def load_dataset(path):
+    """Load dataset safely with error handling."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Dataset not found at: {path}")
+    return pd.read_csv(path)
 
-# ---- Feature Inputs UI ----
-with columns[0]:
-    season = st.selectbox("Season", options=[1,2,3,4], format_func=lambda x: {1:"Spring",2:"Summer",3:"Fall",4:"Winter"}[x])
-    yr_text = st.text_input("Year (0=2011, 1=2012)", key="yr_text")
-    mnth_text = st.text_input("Month (1-12)", key="mnth_text")
-with columns[1]:
-    holiday = st.selectbox("Holiday", options=[0,1], format_func=lambda x: "Yes" if x==1 else "No")
-    weekday = st.selectbox(
-        "Weekday", options=list(range(7)),
-        format_func=lambda x: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][x]
-    )
-    workingday = st.slider("Workingday", min_value=0, max_value=1, step=1, format="%d")
-with columns[2]:
-    weathersit = st.selectbox("Weathersit", options=[1,2,3,4], format_func=lambda x: {1:"Clear",2:"Mist",3:"Light Rain/Snow",4:"Heavy Rain/Snow"}[x])
-    temp_text = st.text_input("Temperature (celsius)", key="temp_text")
-    hum_text = st.text_input("Humidity (0-1)", key="hum_text")
-with columns[3]:
-    windspeed_text = st.text_input("Windspeed (0-1)", key="windspeed_text")
-    weekend = st.selectbox("Weekend", options=[0,1], format_func=lambda x: "Yes" if x==1 else "No")
 
-def pick_input(dropdown_val, textbox_val, dtype=float):
-    try:
-        val = str(textbox_val).strip()
-        if val == "":
-            return dropdown_val
-        else:
-            return dtype(val)
-    except Exception:
-        return dropdown_val
+def load_model(path):
+    """Load ML model with pickle."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Model not found at: {path}")
+    with open(path, "rb") as f:
+        return pickle.load(f)
 
-input_dict = {
-    'season': pick_input(season, season, int),
-    'yr': pick_input(0, yr_text, int),
-    'mnth': pick_input(1, mnth_text, int),
-    'holiday': pick_input(holiday, holiday, int),
-    'weekday': pick_input(0, weekday, int),
-    'workingday': pick_input(workingday, workingday, int),
-    'weathersit': pick_input(weathersit, weathersit, int),
-    'temp': pick_input(0.5, temp_text, float),
-    'hum': pick_input(0.5, hum_text, float),
-    'windspeed': pick_input(0.1, windspeed_text, float),
-    'weekend': pick_input(weekend, weekend, int)
-}
 
-features = ['season','yr','mnth','holiday','weekday','workingday','weathersit','temp','hum','windspeed','weekend']
-input_df = pd.DataFrame([input_dict])
+def load_scaler(path):
+    """Load scaler if exists."""
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    return None
+
+
+# ---------------------------------------------------------
+#              PREPROCESS USER INPUT
+# ---------------------------------------------------------
+def preprocess_user_input(raw_input, df_training, scaler=None):
+    """
+    Convert real-world user input into model-ready format:
+    - One-hot encode categorical values
+    - Add missing features
+    - Apply scaling to numeric fields
+    """
+
+    X = pd.DataFrame([raw_input])
+
+    # ---------- ONE-HOT ENCODING ----------
+    categories = {
+        "season": [1, 2, 3, 4],
+        "mnth": list(range(1, 13)),
+        "weekday": list(range(0, 7)),
+        "weathersit": [1, 2, 3],
+    }
+
+    for col, values in categories.items():
+        for v in values:
+            X[f"{col}_{v}"] = 1 if X[col].iloc[0] == v else 0
+
+    # Drop original columns
+    X.drop(["season", "mnth", "weekday", "weathersit"], axis=1, inplace=True)
+
+    # ---------- ADD MISSING COLUMNS ----------
+    for col in df_training.columns:
+        if col != "cnt" and col not in X.columns:
+            X[col] = 0
+
+    # ---------- SCALE NUMERIC FIELDS ----------
+    if scaler:
+        X[NUM_COLS] = scaler.transform(X[NUM_COLS])
+
+    # Final ordering
+    final_cols = [c for c in df_training.columns if c != "cnt"]
+    X = X[final_cols]
+
+    return X
+
+
+# =========================================================
+#                     STREAMLIT UI
+# =========================================================
+st.title("🚴 RideWise – Bike Sharing Demand Prediction")
+st.markdown("### Predict daily rider demand using ML models trained on historical data.")
+
+
+# ---------------------------------------------------------
+#               LOAD TRAINING DATASET
+# ---------------------------------------------------------
+try:
+    df = load_dataset(DATASET_PATH)
+    st.success(" Dataset loaded successfully!")
+except Exception as e:
+    st.error(str(e))
+    st.stop()
+
+if st.checkbox("Show Training Dataset"):
+    st.write(df.head())
+
+
+# ---------------------------------------------------------
+#                 LOAD MODEL & SCALER
+# ---------------------------------------------------------
+model_files = [f for f in os.listdir(MODEL_DIR) if f.endswith(".pkl")]
+
+if not model_files:
+    st.error(" No model files found in the directory.")
+    st.stop()
+
+selected_model_file = st.selectbox("Select Model to Use", model_files)
+BEST_MODEL_PATH = os.path.join(MODEL_DIR, selected_model_file)
 
 try:
-    X_input = scaler.transform(input_df[features])
-    if st.button("Predict Demand (cnt)"):
-        cnt_pred = model.predict(X_input)
-        cnt_pred_final = int(np.round(cnt_pred[0]**2, 0))  # Inverse sqrt if needed (else use cnt_pred[0])
-        st.success(f"Predicted bike demand (cnt): {cnt_pred_final}")
-
-    # --- Predicted vs Actual Graph for test dataset ---
-    st.subheader("Predicted vs Actual: Test Dataset")
-    df_pred = df.copy()
-    X_test_all = scaler.transform(df_pred[features])
-    y_test_actual = df_pred["cnt"].values if "cnt" in df_pred.columns else np.zeros(df_pred.shape[0])
-    y_test_pred = model.predict(X_test_all)
-    y_test_pred_final = np.round(y_test_pred**2, 0)
-    fig, ax = plt.subplots(figsize=(8,6))
-    ax.scatter(y_test_actual, y_test_pred_final, color='royalblue', alpha=0.6, label='Predictions')
-    ax.plot([y_test_actual.min(), y_test_actual.max()], [y_test_actual.min(), y_test_actual.max()], 'r--', label='Perfect (y=x)')
-    ax.set_xlabel("Actual Count")
-    ax.set_ylabel("Predicted Count")
-    ax.set_title("Actual vs Predicted Bike Demand (Test Data)")
-    ax.legend()
-    st.pyplot(fig)
-
+    model = load_model(BEST_MODEL_PATH)
+    st.success(f" Model Loaded: **{selected_model_file}**")
 except Exception as e:
-    st.error(f"Input Error: {e}")
+    st.error(str(e))
+    st.stop()
+
+# Load scaler
+SCALER_PATH = os.path.join(MODEL_DIR, "scaler.pkl")
+scaler = load_scaler(SCALER_PATH)
+
+if scaler:
+    st.info("🔧 Scaler loaded – Numeric fields will be transformed.")
+
+
+# ---------------------------------------------------------
+#                   USER REAL WORLD INPUTS
+# ---------------------------------------------------------
+st.subheader(" Enter Real-World Input Features")
+
+input_features = {}
+
+# -------------- NUMERIC INPUTS (2 per row) --------------
+st.markdown("### 🌡 Weather Inputs")
+
+numeric_fields = ["temp", "atemp", "hum", "windspeed"]
+numeric_defaults = {"temp": 0.3, "atemp": 0.3, "hum": 0.6, "windspeed": 0.2}
+
+for i in range(0, len(numeric_fields), 2):
+    cols = st.columns(2)
+    for j, field in enumerate(numeric_fields[i : i + 2]):
+        input_features[field] = cols[j].number_input(
+            f"{field.upper()}",
+            value=float(numeric_defaults[field]),
+            help="These values are normalized between 0 and 1.",
+        )
+
+# -------------- CATEGORICAL INPUTS (2 per row) ----------
+st.markdown("###  Categorical Inputs")
+
+cat_features = ["season", "yr", "mnth", "holiday", "weekday", "workingday", "weathersit"]
+cat_defaults = {
+    "season": 1, "yr": 1, "mnth": 6,
+    "holiday": 0, "weekday": 3,
+    "workingday": 1, "weathersit": 1
+}
+
+cat_options = {
+    "season": [1, 2, 3, 4],
+    "yr": [0, 1],
+    "mnth": list(range(1, 13)),
+    "holiday": [0, 1],
+    "weekday": list(range(0, 7)),
+    "workingday": [0, 1],
+    "weathersit": [1, 2, 3],
+}
+
+for i in range(0, len(cat_features), 2):
+    cols = st.columns(2)
+    for j, field in enumerate(cat_features[i : i + 2]):
+        input_features[field] = cols[j].selectbox(
+            f"{field.upper()}",
+            options=cat_options[field],
+            index=cat_options[field].index(cat_defaults[field]),
+        )
+
+
+# ---------------------------------------------------------
+#                      PREDICTION
+# ---------------------------------------------------------
+if st.button("🚀 Predict Demand"):
+    try:
+        X_input = preprocess_user_input(input_features, df, scaler)
+        prediction = int(model.predict(X_input)[0])
+        st.success(f"🔮 **Predicted Bike Demand: {prediction} riders**")
+
+    except Exception as e:
+        st.error(f"❌ Prediction Failed: {str(e)}")
+
+
+# ---------------------------------------------------------
+#        OPTIONAL PLOT – TRAINING DATA DISTRIBUTION
+# ---------------------------------------------------------
+if st.checkbox("Show Demand Distribution Plot"):
+    st.write("### 📊 Training Dataset Demand Distribution")
+    plt.figure(figsize=(10, 5))
+    df["cnt"].hist(bins=30)
+    plt.xlabel("Bike Count")
+    plt.ylabel("Frequency")
+    st.pyplot(plt)
