@@ -1,11 +1,18 @@
+==============================================================================
 RideWise:Predicting Bike-Sharing Demand Based on Weather and Urban Events
+==============================================================================
 
-Project Statement:
+[Project Statement]:
 The goal of this project is to build machine learning regression models to predict city bike-sharing demand. The
-primary objectives are to forecast daily or hourly rental counts for a city’s bike-sharing system based on a
+primary objectives are to forecast daily rental counts for a city’s bike-sharing system based on a
 combination of historical bike usage data, weather information, and details of city events or activities. This project
 aims to help urban planners and transit operators make better decisions regarding fleet management and distribution
 in response to demand patterns.
+
+[PROJECT OVERVIEW] :
+RideWise is a Machine Learning application designed to predict the daily demand for bike-sharing systems. By analyzing historical rental data, meteorological conditions (temperature, humidity, wind speed), and calendar events (holidays, weekdays), the system forecasts the number of bikes required for a specific day.
+
+The project includes a comprehensive data science pipeline (preprocessing, EDA, modeling) and a user-friendly web interface built with Streamlit for real-time predictions.
 
 Use Cases: The project addresses two primary use cases:
 Predicting Bike-Sharing Demand:
@@ -16,3 +23,77 @@ Assessing Impact of Features:
 • Description: Use the trained model to understand how factors such as weather variations, city events,
 or neighbourhood characteristics affect demand. This helps in understanding and optimizing
 ridership patterns and planning for infrastructure improvements.
+
+[Features]
+* Predictive Modeling: Uses Gradient Boosting Regressor (XGBoost) with hyperparameter tuning for high accuracy (~90.1% R2 Score).
+* Interactive Dashboard: A Streamlit-based web GUI allowing users to adjust weather sliders and see instant predictions.
+* Insight Generation: Automatically generates "Insight Reports" explaining why demand is high or low (e.g., "Cold weather reducing demand").
+* Robust Preprocessing: Handles outliers, performs one-hot encoding, and scales features automatically.
+
+[TECH STACK]
+* Language: Python
+* Libraries:
+  - Pandas & NumPy (Data Manipulation)
+  - Matplotlib & Seaborn (Visualization)
+  - Scikit-learn (Modeling & Preprocessing)
+  - GradientBoostingRegressor(GridsearchCV) (Advanced Modeling)
+  - Joblib (Model Serialization)
+  - Streamlit (Web Framework)
+
+[DATASET]
+The project uses the "Bike Sharing Dataset" (day.csv).
+* Records: 731 daily entries.
+* Features: Season, Year, Month, Holiday, Weekday, Working Day, Weather Situation, Temperature, Humidity, Windspeed.
+* Target: 'cnt' (Total count of rented bikes).
+
+==============================================================================
+  INSTALLATION & SETUP
+==============================================================================
+
+1. INSTALL DEPENDENCIES
+   Open your terminal/command prompt and run:
+   pip install pandas numpy scikit-learn matplotlib seaborn joblib streamlit xgboost
+
+2. UPDATE FILE PATHS
+   Open 'app.py' and ensure the paths to the .pkl files match your local directory structure.
+   Look for lines like: joblib.load(r"D:\RideWise...\gradient_boost(CV).pkl")
+   Update them to your specific path or use relative paths (e.g., "Modeling/Saved_Models_files/gradient_boost(CV).pkl").
+
+==============================================================================
+  HOW TO RUN
+==============================================================================
+
+[RUNNING THE WEB APPLICATION]
+To launch the dashboard, navigate to the project directory in your terminal and run:
+
+   streamlit run app.py
+
+This will open the application in your default web browser (usually at http://localhost:8501).
+
+[RUNNING THE NOTEBOOKS]
+To explore the data analysis and model training steps:
+1. Open Jupyter Notebook or JupyterLab.
+2. Run 'Data_Preprocessing (2).ipynb' to clean the data.
+3. Run 'Lasso,Ridge,Elastic_Net_and_Decision_trees.ipynb' to train the models and generate the .pkl files.
+
+==============================================================================
+  MODEL PERFORMANCE
+==============================================================================
+
+Multiple regression models were evaluated during development:
+
+1. Linear Regression:      R2 Score ~ 0.86
+2. Random Forest:          R2 Score ~ 0.88
+3. Gradient Boosting (CV): R2 Score ~ 0.90 (Champion Model)
+
+The final deployed model is the Gradient Boosting Regressor tuned with GridSearchCV, chosen for its ability to capture non-linear weather dependencies.
+
+==============================================================================
+  CONTACT & CREDITS
+==============================================================================
+
+Developed by: Atharva Chauhan
+Internship: Springboard Infosys
+Date: December 2025
+
+This project was submitted in partial fulfillment of the requirements for the completion of the Springboard Infosys Internship.
