@@ -1,1 +1,10 @@
 day.csv
+# Python virtual environment
+venv/
+.venv/
+
+# Other common ignored files for Python projects
+__pycache__/
+*.pyc
+*.egg-info/
+.DS_Store
