@@ -1,0 +1,18 @@
+RideWise:Predicting Bike-Sharing Demand Based on Weather and Urban Events
+
+Project Statement:
+The goal of this project is to build machine learning regression models to predict city bike-sharing demand. The
+primary objectives are to forecast daily or hourly rental counts for a city’s bike-sharing system based on a
+combination of historical bike usage data, weather information, and details of city events or activities. This project
+aims to help urban planners and transit operators make better decisions regarding fleet management and distribution
+in response to demand patterns.
+
+Use Cases: The project addresses two primary use cases:
+Predicting Bike-Sharing Demand:
+• Description: Using historical usage records, weather conditions, and scheduled city events, predict
+the number of bike rentals for a given day or hour. This supports operational decisions in fleet
+rebalancing, station stocking, and anticipating surges during special events or adverse weather.
+Assessing Impact of Features:
+• Description: Use the trained model to understand how factors such as weather variations, city events,
+or neighbourhood characteristics affect demand. This helps in understanding and optimizing
+ridership patterns and planning for infrastructure improvements.
